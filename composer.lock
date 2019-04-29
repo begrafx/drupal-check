@@ -103,16 +103,16 @@
         },
         {
             "name": "mglaman/phpstan-drupal",
-            "version": "0.11.4",
+            "version": "0.11.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mglaman/phpstan-drupal.git",
-                "reference": "bf4a26fe856a61fe2cbfc191aada702ef0cecac3"
+                "reference": "9fe4177f4f0d270a299bb7b42175a2f50537a9a2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mglaman/phpstan-drupal/zipball/bf4a26fe856a61fe2cbfc191aada702ef0cecac3",
-                "reference": "bf4a26fe856a61fe2cbfc191aada702ef0cecac3",
+                "url": "https://api.github.com/repos/mglaman/phpstan-drupal/zipball/9fe4177f4f0d270a299bb7b42175a2f50537a9a2",
+                "reference": "9fe4177f4f0d270a299bb7b42175a2f50537a9a2",
                 "shasum": ""
             },
             "require": {
@@ -174,7 +174,7 @@
                 }
             ],
             "description": "Drupal extension and rules for PHPStan",
-            "time": "2019-04-08T14:26:27+00:00"
+            "time": "2019-04-29T04:51:30+00:00"
         },
         {
             "name": "mglaman/phpstan-drupal-deprecations",
