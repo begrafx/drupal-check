@@ -2,6 +2,8 @@
 
 namespace DrupalCheck\Command;
 
+use DrupalCheck\DrupalCheckErrorHandler;
+use DrupalCheck\PHPStan\DrupalCheckAnalyze;
 use DrupalFinder\DrupalFinder;
 use PHPStan\Command\AnalyseApplication;
 use PHPStan\Command\CommandHelper;
@@ -27,7 +29,7 @@ class CheckCommand extends Command
         $this
             ->setName('check')
             ->setDescription('Checks a Drupal site')
-            ->addArgument('path', InputArgument::REQUIRED, 'The Drupal code path to inspect')
+            ->addArgument('path', InputArgument::REQUIRED | InputArgument::IS_ARRAY, 'The Drupal code path(s) to inspect')
             ->addOption('format', null, InputOption::VALUE_OPTIONAL, 'Formatter to use: raw, table, checkstyle, json, or junit', 'table')
             ->addOption('deprecations', 'd', InputOption::VALUE_NONE, 'Check for deprecations')
             ->addOption('analysis', 'a', InputOption::VALUE_NONE, 'Check code analysis')
@@ -75,24 +77,32 @@ class CheckCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $drupalFinder = new DrupalFinder();
-        $path = realpath($input->getArgument('path'));
+        $errorHandler = new DrupalCheckErrorHandler();
+        $errorHandler->register();
 
-        if (!$path || !file_exists($path)) {
-            $output->writeln(sprintf('<error>%s does not exist</error>', $input->getArgument('path')));
-            return 1;
+        $drupalFinder = new DrupalFinder();
+
+        $paths = [];
+        foreach ($input->getArgument('path') as $path) {
+            $realPath = realpath($path);
+            if (!$realPath) {
+                $output->writeln(sprintf('<error>%s does not exist</error>', $path));
+                return 1;
+            }
+
+            $paths[] = $realPath;
         }
 
-        $drupalFinder->locateRoot($path);
+        $drupalFinder->locateRoot($paths[0]);
         $this->drupalRoot = $drupalFinder->getDrupalRoot();
         $this->vendorRoot = $drupalFinder->getVendorDir();
 
         if (!$this->drupalRoot) {
-            $output->writeln('Unable to determine the Drupal root');
+            $output->writeln(sprintf('<error>Unable to locate the Drupal root in %s</error>', $paths[0]));
             return 1;
         }
 
-        $output->writeln(sprintf('<info>Current working directory: %s', getcwd()), OutputInterface::VERBOSITY_DEBUG);
+        $output->writeln(sprintf('<comment>Current working directory: %s</comment>', getcwd()), OutputInterface::VERBOSITY_DEBUG);
         $output->writeln(sprintf('<info>Using Drupal root: %s</info>', $this->drupalRoot), OutputInterface::VERBOSITY_DEBUG);
         $output->writeln(sprintf('<info>Using vendor root: %s</info>', $this->vendorRoot), OutputInterface::VERBOSITY_DEBUG);
         if (!is_file($this->vendorRoot . '/autoload.php')) {
@@ -121,7 +131,7 @@ class CheckCommand extends Command
             $inceptionResult = CommandHelper::begin(
                 $input,
                 $output,
-                [$input->getArgument('path')],
+                $input->getArgument('path'),
                 null,
                 null,
                 null,
@@ -155,7 +165,7 @@ class CheckCommand extends Command
         /** @var AnalyseApplication  $application */
         $application = $container->getByType(AnalyseApplication::class);
 
-        return $inceptionResult->handleReturn(
+        $exitCode = $inceptionResult->handleReturn(
             $application->analyse(
                 $inceptionResult->getFiles(),
                 $inceptionResult->isOnlyFiles(),
@@ -165,5 +175,15 @@ class CheckCommand extends Command
                 $output->getVerbosity() === OutputInterface::VERBOSITY_DEBUG
             )
         );
+        $errorHandler->restore();
+        $warnings = $errorHandler->getWarnings();
+        if (count($warnings) > 0) {
+            $output->write(PHP_EOL);
+            foreach ($warnings as $warning) {
+                $output->writeln("<info>$warning</info>");
+            }
+        }
+
+        return $exitCode;
     }
 }
